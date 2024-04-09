@@ -109,6 +109,9 @@ def myopicController(X_est,PI_est,Control,gamma,true_model_est,true_model_est_nu
     #target_model_est: state. est. target dynamics, must depend upon X_plus
 
     #control coupling matrix, evaluated at state estimate, NOT TRUE STATE
+    max_power = 1.0  # This is the maximum allowed norm for the control signal
+
+
     B = grad_elemwise(true_model_est,Control)
 
     #myopic control
@@ -164,6 +167,11 @@ def myopicController(X_est,PI_est,Control,gamma,true_model_est,true_model_est_nu
     #exp1_approx C = exp2_approx. avoid inversion
     Control_new = tf.squeeze(
         tf.matrix_solve(exp1_approx,-1.0*tf.expand_dims(exp2_approx,1)))
+    print('applied')
+    control_norm = tf.norm(Control_new)
+    print(control_norm)
+    scaling_factor = tf.minimum(1.0, max_power / control_norm)
+    Control_new = tf.multiply(scaling_factor, Control_new)
     #Control_new = tf.squeeze(
     #    tf.cholesky_solve(tf.cholesky(exp1_approx),-1.0*tf.expand_dims(exp2_approx,1)))
     
@@ -203,6 +211,8 @@ def myopicController_meanonly(X_est,PI_est,Control,gamma,true_model_est,
 
 def myopicController_noBdiff(X_est,PI_est,Control,gamma,true_model_est,
                               true_model_est_null,target_model_est,xdim,udim):
+
+    #myopic controller 2nd order, but without B differentiation                          
     #graphs for updating state and observation, but B is not differentiable with respect to state
     
     #true_model_est: state est. gradient, controlled dyamics, must depend upon X_plus, Control
