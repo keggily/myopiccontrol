@@ -102,6 +102,40 @@ def EKF(X_est,Y_tp1,PI_est,true_model_est,true_model_est_null,Q,R,xdim,dt):
     return X_plus, PI_plus
 
 
+import numpy as np
+from scipy.linalg import solve_discrete_are
+
+class LQRController:
+    def __init__(self, A, B, Q, R):
+        self.A = A
+        self.B = B
+        self.Q = Q
+        self.R = R
+        self.K = self.calculate_lqr_gain()
+
+    def calculate_lqr_gain(self):
+        # Solve the Riccati equation
+        P = solve_discrete_are(self.A, self.B, self.Q, self.R)
+        # Calculate the LQR gain
+        K = np.linalg.inv(self.R + self.B.T @ P @ self.B) @ (self.B.T @ P @ self.A)
+        return K
+
+    def calculate_control(self, x):
+        # Calculate the control signal
+        u = -self.K @ x
+        return u
+
+    def apply_control(self, x, x_target):
+        # Calculate the state error
+        error = x - x_target
+        # Get the control signal
+        control_signal = self.calculate_control(error)
+        return control_signal
+
+
+
+
+
 def myopicController(X_est,PI_est,Control,gamma,true_model_est,true_model_est_null,target_model_est,xdim,udim):
     #graphs for updating state and observation
     #true_model_est: state est. gradient, controlled dyamics, must depend upon X_plus, Control

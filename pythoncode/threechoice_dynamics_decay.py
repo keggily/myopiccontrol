@@ -31,15 +31,11 @@ def gabor_lobes_tf(x,m,L,n):
     return K
 
 
-def grad_threechoice(V,n,dt,Control):
-    #gradient [dV/dt, dn/dt] for the diseased state dynamics, with a limit cycle attractor
-    #and three stable points
-    #based on the Na-K model spiking neuron model from Dynamical systems in Neuroscience, Ch4, Izhikevich
-    
-    #V should range from 0 to 1
-    #transform from -100 to 20
+def grad_threechoice(V, n, dt, Control, responsiveness_factor):
+
+    # Dynamics computation with inherent responsiveness reduction
     Vold = V
-    V = 180.*V-80.
+    V = 180.*V - 80.
 
     #constants
     C = 1.
@@ -71,17 +67,20 @@ def grad_threechoice(V,n,dt,Control):
     mInf = 1./(1+np.exp(exargm))
     exargn = min(emaxarg,(V_ninf-V)/k_ninf)
     nInf = 1./(1+np.exp(exargn))
-    #if exargm==10.:
-    #    print('it happened m')
-    #    print((V_ninf-V)/k_ninf)
-    #elif exargn==10.:
-    #    print('it happened n')
-    #    print((V_ninf-V)/k_ninf)
-    #print((V_ninf-V)/k_ninf)
-      
     Vprime = 1/C*(I-gL*(V-El)-gNa*mInf*(V-ENa) - gK*n*(V-Ek))
     nprime = (nInf-n)/tau
-    
+
+    # Apply a responsiveness reduction factor within the dynamics
+    # The system is only 50% as responsive as before
+    Vprime *= responsiveness_factor
+    nprime *= responsiveness_factor
+
+    print('reponsiveness factor: ',responsiveness_factor)
+
+    # Now add the control effects, which are also less effective
+    Vprime += responsiveness_factor * Control[0]
+    nprime += responsiveness_factor * Control[1]
+
     #rescale each dimension
     rfactn = 160.
     vf = 180.
@@ -117,13 +116,12 @@ def grad_threechoice(V,n,dt,Control):
     gm2 = gm(x,meanvec[1,:])
     gm3 = gm(x,meanvec[2,:])
 
-    #multiplicative gaussian mask centered around stable point position
-    #and addition of new stable points
     K = dt*(Kold*gm1*gm2*gm3+ rfactnew*(K1 + K2 + K3))+Control
 
     return K
 
-def grad_threechoice_tf(V,n,dt,Control):
+
+def grad_threechoice_tf(V,n,dt,Control, responsiveness_factor):
     #gradient [dV/dt, dn/dt] for the diseased state dynamics, with a limit cycle attractor
     #and three stable points
     #based on the Na-K model spiking neuron model from Dynamical systems in Neuroscience, Ch4, Izhikevich
@@ -133,7 +131,7 @@ def grad_threechoice_tf(V,n,dt,Control):
     Vold = V
     V = 180.*V-80.
 
-    #constants # CAN EDIT THESE TO PRODUCE DIFFERENT DYNAMICS
+    #constants
     C = 1.
     I = 10.
     ENa = 60. #mV
@@ -166,6 +164,16 @@ def grad_threechoice_tf(V,n,dt,Control):
       
     Vprime = 1/C*(I-gL*(V-El)-gNa*mInf*(V-ENa) - gK*n*(V-Ek))
     nprime = (nInf-n)/tau
+
+
+    # Apply a responsiveness reduction factor within the dynamics
+    # The system is only 50% as responsive as before
+    Vprime *= responsiveness_factor
+    nprime *= responsiveness_factor
+
+    # Now add the control effects, which are also less effective
+    Vprime += responsiveness_factor * Control[0]
+    nprime += responsiveness_factor * Control[1]
     
     #rescale each dimension
     rfactn = 160.
@@ -234,8 +242,8 @@ def grad_threechoice_healthy(V,n,dt):
     
     rfactnew = np.array([rfactV,rfactn]) #scaling factor for each dimension of dynamics
        
-    tm_pos = 0.5*(math.tanh((x[0]-x0)*pi/tfact)+1) #1 on postivie side of xi # CAN EDIT NONLINEARITY THRESHOLD FOR MORE STABILITY 
-    tm_neg = 0.5*(math.tanh(-(x[0]-x0)*pi/tfact)+1) #1 on negative side of xi # CAN EDIT NONLINEARITY THRESHOLD FOR MORE STABILITY 
+    tm_pos = 0.5*(math.tanh((x[0]-x0)*pi/tfact)+1) #1 on postivie side of xi
+    tm_neg = 0.5*(math.tanh(-(x[0]-x0)*pi/tfact)+1) #1 on negative side of xi
     #the additive barrier to prevent limit cycle. a hyperbolic tangent
     barrier = rfactnew*[tm_neg,0]
 
